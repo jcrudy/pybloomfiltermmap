@@ -68,7 +68,7 @@ BloomFilter *bloomfilter_Create_Mmap(size_t max_num_elem, double error_rate,
 
     /* After we create the new array object, this array may already
        have all of the bloom filter data from the file in the
-       header info. 
+       header info.
        By calling mbarray_Header, we copy that header data
        back into this BloomFilter object.
     */
@@ -145,7 +145,7 @@ BloomFilter * bloomfilter_Copy_Template(BloomFilter * src, char * filename, int 
 }
 
 
-uint32_t _hash_long(uint32_t hash_seed, Key * key) {
+BTYPE _hash_long(uint32_t hash_seed, Key * key) {
     Key newKey = {
         .shash = (char *)&key->nhash,
         .nhash = sizeof(key->nhash)
@@ -155,19 +155,7 @@ uint32_t _hash_long(uint32_t hash_seed, Key * key) {
 }
 
 /*
-CODE FOR djb HASH...
-uint32_t _hash_char(uint32_t hash_seed, Key * key) {
-    register uint32_t result = 5381 ^ hash_seed;
-    register unsigned char * ptr = (unsigned char *)key->shash;
-    register int i;
-    for (i = key->nhash; i > 0; --i) {
-        result = 33 * result + *(ptr++);
-    }
-    return result;
-}
-
 CODE TO USE SHA512..
-*/
 #include <openssl/evp.h>
 
 uint32_t _hash_char(uint32_t hash_seed, Key * key) {
@@ -183,29 +171,17 @@ uint32_t _hash_char(uint32_t hash_seed, Key * key) {
     EVP_MD_CTX_cleanup(&ctx);
     return *(uint32_t *)result_buffer;
 }
-/*
-CODE TO USE md5sum
-
-#include "md5.h"
-uint32_t _hash_char(uint32_t hash_seed, Key * key) {
-    md5_state_t state;
-    md5_byte_t result[16];
-    int i;
-
-    md5_init(&state);
-    md5_append(&state, (md5_byte_t *)&hash_seed, sizeof(uint32_t));
-    md5_append(&state, (md5_byte_t *)key->shash, key->nhash);
-    md5_finish(&state, result);
-    return *(uint32_t *)(&result[4]);
-}
-
-
-/ * Code for SuperFast * /
-#include "superfast.h"
-uint32_t _hash_char(uint32_t hash_seed, Key * key) {
-	return SuperFastHash(key->shash, key->nhash, hash_seed);
-}
 */
+
+/* Code for MurmurHash3 */
+#include "MurmurHash3.h"
+BTYPE _hash_char(uint32_t hash_seed, Key * key) {
+    BTYPE hashed_pieces[2];
+    MurmurHash3_x64_128((const void *)key->shash, (int)key->nhash,
+                       hash_seed, &hashed_pieces);
+    return hashed_pieces[0] ^ hashed_pieces[1];
+}
+
 
 #if 0
 int main(int argc, char **argv)
